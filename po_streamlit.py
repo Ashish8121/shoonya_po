@@ -75,7 +75,7 @@ if st.button("Generate Purchase Order PDF"):
 
     pdf = FPDF()
     pdf.add_page()
-    pdf.set_font("Helvetica", size=25)
+    pdf.set_font("Helvetica", size=20)
 
     # PURCHASE ORDER
     pdf.text(x=120, y=15, txt="PURCHASE ORDER")

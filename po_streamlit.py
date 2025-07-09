@@ -1,6 +1,7 @@
 import streamlit as st
 from fpdf import FPDF
 from io import BytesIO
+from textwrap import wrap
 
 st.title("Purchase Order Generator")
 
@@ -74,7 +75,7 @@ if st.button("Generate Purchase Order PDF"):
 
     pdf = FPDF()
     pdf.add_page()
-    pdf.set_font("Helvetica", size=25)
+    pdf.set_font("Helvetica", size=20)
 
     # PURCHASE ORDER
     pdf.text(x=120, y=15, txt="PURCHASE ORDER")
@@ -139,7 +140,7 @@ Contact: {vendor_contact}"""
         pdf.cell(width, 10, header, border=1, align='C', fill=True)
     pdf.ln()
 
-    # ➡️ Table rows with natural word wrapping
+    # ➡️ Table rows with wrapping
     total_amount = 0
     pdf.set_y(start_y + 10)
 
@@ -157,18 +158,16 @@ Contact: {vendor_contact}"""
         y_start = pdf.get_y()
         max_y = y_start
 
-        # Calculate max row height based on wrapped text
         for col_idx, val in enumerate(row):
             x = x_positions[col_idx]
             y = pdf.get_y()
             pdf.set_xy(x, y)
             pdf.multi_cell(col_widths[col_idx], line_height, val, border=0, align='C')
             max_y = max(max_y, pdf.get_y())
-            pdf.set_xy(x + col_widths[col_idx], y)  # Reset x to next cell
+            pdf.set_xy(x + col_widths[col_idx], y)
 
         row_height = max_y - y_start
 
-        # Page break if needed
         if pdf.get_y() + row_height > 270:
             pdf.add_page()
             pdf.set_fill_color(200, 200, 200)
@@ -179,7 +178,6 @@ Contact: {vendor_contact}"""
             y_start = pdf.get_y()
             max_y = y_start
 
-        # Draw the row with borders properly
         pdf.set_y(y_start)
         for col_idx, val in enumerate(row):
             x = x_positions[col_idx]
@@ -190,30 +188,28 @@ Contact: {vendor_contact}"""
         pdf.set_y(max_y)
         total_amount += float(item["amount"])
 
-    # ➡️ IGST and Total calculation
-   # ➡️ IGST and Total calculation aligned with last two columns
-    pdf.set_x(start_x)
-    pdf.cell(sum(col_widths[:-2]), 10, '', border=0)  # Empty cells spanning first columns
-    pdf.cell(col_widths[-2], 10, "Sub Total:", border=1, align='R')
+    # ➡️ IGST and Total calculation (moved outside the loop)
+    igst = total_amount * 0.18
+    grand_total = total_amount + igst
+
+    pdf.set_x(start_x + sum(col_widths[:-2]))
+    pdf.cell(col_widths[-2], 10, "Sub Total:", border=0, align='R')
     pdf.cell(col_widths[-1], 10, f"{total_amount:.2f}", border=1, align='C')
     pdf.ln()
 
-    pdf.set_x(start_x)
-    pdf.cell(sum(col_widths[:-2]), 10, '', border=0)
-    pdf.cell(col_widths[-2], 10, "IGST 18%:", border=1, align='R')
+    pdf.set_x(start_x + sum(col_widths[:-2]))
+    pdf.cell(col_widths[-2], 10, "IGST 18%:", border=0, align='R')
     pdf.cell(col_widths[-1], 10, f"{igst:.2f}", border=1, align='C')
     pdf.ln()
 
-    pdf.set_x(start_x)
-    pdf.cell(sum(col_widths[:-2]), 10, '', border=0)
+    pdf.set_x(start_x + sum(col_widths[:-2]))
     pdf.set_font("Helvetica", "B", size=10)
-    pdf.cell(col_widths[-2], 10, "Total:", border=1, align='R')
+    pdf.cell(col_widths[-2], 10, "Total:", border=0, align='R')
     pdf.set_font("Helvetica", size=10)
     pdf.cell(col_widths[-1], 10, f"{grand_total:.2f}", border=1, align='C')
     pdf.ln(20)
 
 
-   
     # Output PDF as BytesIO
     pdf_output = pdf.output(dest='S').encode('latin1') if isinstance(pdf.output(dest='S'), str) else pdf.output(dest='S')
     pdf_bytes = BytesIO(pdf_output)

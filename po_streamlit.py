@@ -6,24 +6,17 @@ from textwrap import wrap
 st.title("Purchase Order Generator")
 
 # 🗂️ Vendor and Deliver To columns
-col1, col2 = st.columns(2)
 
-with col1:
-    st.header("Vendor Address ")
-    vendor_name = st.text_input("Vendor Name")
-    vendor_line1 = st.text_input("Vendor Address Line 1")
-    vendor_line2 = st.text_input("Vendor Address Line 2")
-    vendor_gstin = st.text_input("Vendor GSTIN")
-    vendor_contact = st.text_input("Vendor Contact")
-    po_id = st.text_input("PO_id")
 
-with col2:
-    st.header("Deliver To Address ")
-    deliver_name = st.text_input("Deliver To Name")
-    deliver_line1 = st.text_input("Deliver To Address Line 1")
-    deliver_line2 = st.text_input("Deliver To Address Line 2")
-    deliver_gstin = st.text_input("Deliver To GSTIN")
-    deliver_contact = st.text_input("Deliver To Contact")
+st.header("Vendor Address ")
+vendor_name = st.text_input("Vendor Name")
+vendor_line1 = st.text_input("Vendor Address Line 1")
+vendor_line2 = st.text_input("Vendor Address Line 2")
+vendor_gstin = st.text_input("Vendor GSTIN")
+vendor_contact = st.text_input("Vendor Contact")
+po_id = st.text_input("PO_id")
+
+
 
 # ➡️ Initialize session_state for dynamic items
 if "items" not in st.session_state or not isinstance(st.session_state.get("items"), list):
@@ -100,19 +93,9 @@ gurpreet.singh@shoonya.com
     pdf.multi_cell(w=100, h=5, txt=finvasia_address)
     finvasia_end_y = pdf.get_y()
 
-    # Deliver To block
-    pdf.set_font("Helvetica", "B", size=10)
-    deliver_start_y = finvasia_end_y + 5
-    pdf.text(x=8, y=deliver_start_y, txt="Deliver to : ")
-    pdf.set_font("Helvetica", size=10)
-    pdf.set_xy(7, deliver_start_y + 2)
-    deliver_address = f"""{deliver_name}
-{deliver_line1}
-{deliver_line2}
-GSTIN {deliver_gstin}
-Contact: {deliver_contact}"""
-    pdf.multi_cell(w=100, h=5, txt=deliver_address)
-    deliver_end_y = pdf.get_y()
+   
+    
+
 
     # Vendor block
     pdf.set_font("Helvetica", "B", size=10)
@@ -130,7 +113,7 @@ Contact: {vendor_contact}"""
     # ➡️ Table header
     headers = ["S.No", "Item", "Description", "HSN/SAC", "Qty", "Amount"]
     start_x = 5
-    start_y = max(deliver_end_y, pdf.get_y()) + 10
+    start_y = max(finvasia_end_y, pdf.get_y()) + 10
     col_widths = [15, 20, 100, 25, 10, 30]
     line_height = 5
 

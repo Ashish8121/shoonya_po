@@ -220,7 +220,10 @@ Contact: {vendor_contact}"""
     pdf.cell(0, 10, "Authorized Signature", ln=True, align='L')
 
     # Save PDF and provide download button
-    pdf_bytes = pdf.output(dest='S').encode('latin1')
+    pdf_bytes = pdf.output(dest='S')
+    if isinstance(pdf_bytes, str):
+            pdf_bytes = pdf_bytes.encode('latin1')
+
 
     st.download_button(
         label="Download Purchase Order PDF",

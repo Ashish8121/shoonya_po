@@ -1,5 +1,7 @@
 import streamlit as st
 from fpdf import FPDF
+from io import BytesIO
+from textwrap import wrap
 
 st.title("Purchase Order Generator")
 
@@ -27,8 +29,6 @@ with col2:
 if "items" not in st.session_state or not isinstance(st.session_state.get("items"), list):
     st.session_state["items"] = []
 
-
-
 # ➕ Add new item row button
 if st.button("Add New Item Row"):
     st.session_state["items"].append({
@@ -38,9 +38,6 @@ if st.button("Add New Item Row"):
         "qty": 1,
         "amount": 0.0
     })
-
-# Render inputs as table-like layout with headers
-
 
 # Render each item row
 for idx, item in enumerate(st.session_state["items"]):
@@ -135,6 +132,12 @@ Contact: {vendor_contact}"""
     start_x = 5
     start_y = max(deliver_end_y, pdf.get_y()) + 10
     col_widths = [15, 20, 100, 25, 10, 30]
+    line_height = 5
+
+    def wrap_text(pdf, text, cell_width):
+        char_width = pdf.get_string_width('A')
+        max_chars = max(int(cell_width / char_width * 1.8), 1)
+        return wrap(text, max_chars)
 
     pdf.set_fill_color(200, 200, 200)
     pdf.set_xy(start_x, start_y)
@@ -144,7 +147,6 @@ Contact: {vendor_contact}"""
 
     # ➡️ Table rows with wrapping
     total_amount = 0
-    line_height = 7  # Increased for better vertical spacing
     pdf.set_y(start_y + 10)
 
     for idx, item in enumerate(st.session_state["items"]):
@@ -157,17 +159,17 @@ Contact: {vendor_contact}"""
             str(item["amount"])
         ]
 
-        # Get wrapped lines for each cell to find max lines for the row
-        cell_lines = []
+        # Wrap text and find max lines
+        wrapped_cells = []
         max_lines = 1
         for val, width in zip(row, col_widths):
-            lines = pdf.multi_cell(width, line_height, val, border=0, align='C', split_only=True)
-            cell_lines.append(lines)
-            max_lines = max(max_lines, len(lines))
+            wrapped = wrap_text(pdf, val, width)
+            wrapped_cells.append(wrapped)
+            max_lines = max(max_lines, len(wrapped))
 
         row_height = max_lines * line_height
 
-        # Check if page break needed
+        # Page break if needed
         if pdf.get_y() + row_height > 270:
             pdf.add_page()
             pdf.set_fill_color(200, 200, 200)
@@ -179,16 +181,16 @@ Contact: {vendor_contact}"""
         y_before = pdf.get_y()
         x_before = start_x
 
-        # Draw each line of the row
-        for line_idx in range(max_lines):
+        # Draw each cell
+        for col_idx, wrapped in enumerate(wrapped_cells):
             x = x_before
-            for col_idx, lines in enumerate(cell_lines):
-                text = lines[line_idx] if line_idx < len(lines) else ""
-                pdf.set_xy(x, y_before + line_idx * line_height)
-                pdf.cell(col_widths[col_idx], line_height, text, border=1, align='C')
-                x += col_widths[col_idx]
+            y = y_before
+            cell_text = "\n".join(wrapped)
+            pdf.set_xy(x, y)
+            pdf.multi_cell(col_widths[col_idx], line_height, cell_text, border=1, align='C')
+            x_before += col_widths[col_idx]
+            pdf.set_xy(x_before, y_before)
 
-        # Move cursor below this row
         pdf.set_y(y_before + row_height)
         total_amount += float(item["amount"])
 
@@ -219,11 +221,9 @@ Contact: {vendor_contact}"""
     pdf.set_font("Helvetica", "B", size=12)
     pdf.cell(0, 10, "Authorized Signature", ln=True, align='L')
 
-    # Save PDF and provide download button
-    pdf_bytes = pdf.output(dest='S')
-    if isinstance(pdf_bytes, str):
-            pdf_bytes = pdf_bytes.encode('latin1')
-
+    # Output PDF as BytesIO
+    pdf_output = pdf.output(dest='S').encode('latin1') if isinstance(pdf.output(dest='S'), str) else pdf.output(dest='S')
+    pdf_bytes = BytesIO(pdf_output)
 
     st.download_button(
         label="Download Purchase Order PDF",

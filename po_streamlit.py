@@ -1,7 +1,6 @@
 import streamlit as st
 from fpdf import FPDF
 from io import BytesIO
-from textwrap import wrap
 
 st.title("Purchase Order Generator")
 
@@ -75,7 +74,7 @@ if st.button("Generate Purchase Order PDF"):
 
     pdf = FPDF()
     pdf.add_page()
-    pdf.set_font("Helvetica", size=20)
+    pdf.set_font("Helvetica", size=25)
 
     # PURCHASE ORDER
     pdf.text(x=120, y=15, txt="PURCHASE ORDER")
@@ -134,18 +133,13 @@ Contact: {vendor_contact}"""
     col_widths = [15, 20, 100, 25, 10, 30]
     line_height = 5
 
-    def wrap_text(pdf, text, cell_width):
-        char_width = pdf.get_string_width('A')
-        max_chars = max(int(cell_width / char_width * 1.8), 1)
-        return wrap(text, max_chars)
-
     pdf.set_fill_color(200, 200, 200)
     pdf.set_xy(start_x, start_y)
     for header, width in zip(headers, col_widths):
         pdf.cell(width, 10, header, border=1, align='C', fill=True)
     pdf.ln()
 
-    # ➡️ Table rows with wrapping
+    # ➡️ Table rows with natural word wrapping
     total_amount = 0
     pdf.set_y(start_y + 10)
 
@@ -159,15 +153,20 @@ Contact: {vendor_contact}"""
             str(item["amount"])
         ]
 
-        # Wrap text and find max lines
-        wrapped_cells = []
-        max_lines = 1
-        for val, width in zip(row, col_widths):
-            wrapped = wrap_text(pdf, val, width)
-            wrapped_cells.append(wrapped)
-            max_lines = max(max_lines, len(wrapped))
+        x_positions = [start_x + sum(col_widths[:i]) for i in range(len(col_widths))]
+        y_start = pdf.get_y()
+        max_y = y_start
 
-        row_height = max_lines * line_height
+        # Calculate max row height based on wrapped text
+        for col_idx, val in enumerate(row):
+            x = x_positions[col_idx]
+            y = pdf.get_y()
+            pdf.set_xy(x, y)
+            pdf.multi_cell(col_widths[col_idx], line_height, val, border=0, align='C')
+            max_y = max(max_y, pdf.get_y())
+            pdf.set_xy(x + col_widths[col_idx], y)  # Reset x to next cell
+
+        row_height = max_y - y_start
 
         # Page break if needed
         if pdf.get_y() + row_height > 270:
@@ -177,50 +176,44 @@ Contact: {vendor_contact}"""
             for header, width in zip(headers, col_widths):
                 pdf.cell(width, 10, header, border=1, align='C', fill=True)
             pdf.ln()
+            y_start = pdf.get_y()
+            max_y = y_start
 
-        y_before = pdf.get_y()
-        x_before = start_x
+        # Draw the row with borders properly
+        pdf.set_y(y_start)
+        for col_idx, val in enumerate(row):
+            x = x_positions[col_idx]
+            pdf.set_xy(x, y_start)
+            pdf.multi_cell(col_widths[col_idx], line_height, val, border=1, align='C')
+            pdf.set_xy(x + col_widths[col_idx], y_start)
 
-        # Draw each cell
-        for col_idx, wrapped in enumerate(wrapped_cells):
-            x = x_before
-            y = y_before
-            cell_text = "\n".join(wrapped)
-            pdf.set_xy(x, y)
-            pdf.multi_cell(col_widths[col_idx], line_height, cell_text, border=1, align='C')
-            x_before += col_widths[col_idx]
-            pdf.set_xy(x_before, y_before)
-
-        pdf.set_y(y_before + row_height)
+        pdf.set_y(max_y)
         total_amount += float(item["amount"])
 
     # ➡️ IGST and Total calculation
-    igst = total_amount * 0.18
-    grand_total = total_amount + igst
-
-    pdf.set_x(start_x + sum(col_widths[:-2]))
-    pdf.cell(col_widths[-2], 10, "Sub Total:", border=0, align='R')
+   # ➡️ IGST and Total calculation aligned with last two columns
+    pdf.set_x(start_x)
+    pdf.cell(sum(col_widths[:-2]), 10, '', border=0)  # Empty cells spanning first columns
+    pdf.cell(col_widths[-2], 10, "Sub Total:", border=1, align='R')
     pdf.cell(col_widths[-1], 10, f"{total_amount:.2f}", border=1, align='C')
     pdf.ln()
 
-    pdf.set_x(start_x + sum(col_widths[:-2]))
-    pdf.cell(col_widths[-2], 10, "IGST 18%:", border=0, align='R')
+    pdf.set_x(start_x)
+    pdf.cell(sum(col_widths[:-2]), 10, '', border=0)
+    pdf.cell(col_widths[-2], 10, "IGST 18%:", border=1, align='R')
     pdf.cell(col_widths[-1], 10, f"{igst:.2f}", border=1, align='C')
     pdf.ln()
 
-    pdf.set_x(start_x + sum(col_widths[:-2]))
+    pdf.set_x(start_x)
+    pdf.cell(sum(col_widths[:-2]), 10, '', border=0)
     pdf.set_font("Helvetica", "B", size=10)
-    pdf.cell(col_widths[-2], 10, "Total:", border=0, align='R')
+    pdf.cell(col_widths[-2], 10, "Total:", border=1, align='R')
     pdf.set_font("Helvetica", size=10)
     pdf.cell(col_widths[-1], 10, f"{grand_total:.2f}", border=1, align='C')
     pdf.ln(20)
 
-    # ➡️ Authorized Signature
-    if pdf.get_y() + 20 > 270:
-        pdf.add_page()
-    pdf.set_font("Helvetica", "B", size=12)
-    pdf.cell(0, 10, "Authorized Signature", ln=True, align='L')
 
+   
     # Output PDF as BytesIO
     pdf_output = pdf.output(dest='S').encode('latin1') if isinstance(pdf.output(dest='S'), str) else pdf.output(dest='S')
     pdf_bytes = BytesIO(pdf_output)

@@ -1,6 +1,7 @@
 # =========================
 # app.py (main Streamlit app)
 # =========================
+
 import streamlit as st
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
@@ -9,18 +10,19 @@ from reportlab.platypus import Table, TableStyle, SimpleDocTemplate, Paragraph, 
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_CENTER, TA_RIGHT
 from io import BytesIO
-from gdrive import upload_pdf_to_vendor_folder
 from datetime import datetime
-import random
 
+from gdrive import upload_pdf_to_vendor_folder, authenticate_gdrive
+from po_id_utils import generate_po_id
+
+# ➡️ Define your Purchase Orders root folder ID in Drive
 purchase_orders_root_id = "1FYquucEgSnFtWS0SkRKxSB_vXyaGdC1Z"
 
-from po_id_utils import generate_po_id
-from gdrive import authenticate_gdrive
-
+# ➡️ Authenticate Google Drive
 service = authenticate_gdrive()
-folder_id = purchase_orders_root_id  # or your specific folder containing last_po_id.txt
+folder_id = purchase_orders_root_id
 
+# ➡️ Auto-generate PO ID from Google Drive
 po_id = generate_po_id(service, folder_id)
 
 st.title("Purchase Order Generator (ReportLab)")
@@ -32,13 +34,8 @@ vendor_line1 = st.text_input("Vendor Address Line 1")
 vendor_line2 = st.text_input("Vendor Address Line 2")
 vendor_gstin = st.text_input("Vendor GSTIN")
 vendor_contact = st.text_input("Vendor Contact")
-# ➡️ Auto-generate PO ID without user input
-from po_id_utils import generate_po_id
 
-# ➡️ Auto-generate PO ID in series with year
-po_id = generate_po_id()
-
-
+st.markdown(f"**Generated PO ID:** {po_id}")
 
 # ➡️ Initialize session_state for items
 if "items" not in st.session_state:
@@ -191,12 +188,12 @@ Contact: {vendor_contact}
     uploaded_file_id = upload_pdf_to_vendor_folder(pdf_value, vendor_name, purchase_orders_root_id)
     buffer.close()
 
-    st.success(f"PDF successfully uploaded to Google Drive with ID: {uploaded_file_id}")
+    st.success(f"✅ PDF successfully uploaded to Google Drive with ID: {uploaded_file_id}")
 
     # ✅ Download button
     st.download_button(
         label="Download Purchase Order PDF",
         data=pdf_value,
-        file_name="purchase_order_reportlab.pdf",
+        file_name=f"purchase_order_{po_id}.pdf",
         mime="application/pdf"
     )

@@ -15,7 +15,7 @@ import random
 
 purchase_orders_root_id = "1FYquucEgSnFtWS0SkRKxSB_vXyaGdC1Z"
 
-from po_id import generate_po_id
+from po_id_utils import generate_po_id
 from gdrive import authenticate_gdrive
 
 service = authenticate_gdrive()

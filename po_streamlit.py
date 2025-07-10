@@ -1,25 +1,25 @@
 import streamlit as st
-from fpdf import FPDF
+from reportlab.lib.pagesizes import A4
+from reportlab.lib import colors
+from reportlab.lib.units import mm
+from reportlab.platypus import Table, TableStyle, SimpleDocTemplate, Paragraph, Spacer, Image
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.enums import TA_CENTER, TA_RIGHT
 from io import BytesIO
-from textwrap import wrap
 
-st.title("Purchase Order Generator")
+st.title("Purchase Order Generator (ReportLab)")
 
-# 🗂️ Vendor and Deliver To columns
-
-
-st.header("Vendor Address ")
+# ➡️ Vendor input fields
+st.header("Vendor Address")
 vendor_name = st.text_input("Vendor Name")
 vendor_line1 = st.text_input("Vendor Address Line 1")
 vendor_line2 = st.text_input("Vendor Address Line 2")
 vendor_gstin = st.text_input("Vendor GSTIN")
 vendor_contact = st.text_input("Vendor Contact")
-po_id = st.text_input("PO_id")
+po_id = st.text_input("PO ID")
 
-
-
-# ➡️ Initialize session_state for dynamic items
-if "items" not in st.session_state or not isinstance(st.session_state.get("items"), list):
+# ➡️ Initialize session_state for items
+if "items" not in st.session_state:
     st.session_state["items"] = []
 
 # ➕ Add new item row button
@@ -32,29 +32,22 @@ if st.button("Add New Item Row"):
         "amount": 0.0
     })
 
-# Render each item row
+# ➡️ Render each item row
 for idx, item in enumerate(st.session_state["items"]):
     cols = st.columns([1, 3, 5, 2, 1, 2])
-
     with cols[0]:
-        st.markdown(f"{idx+1}")  # S.No display
-
+        st.markdown(f"{idx+1}")  # S.No
     with cols[1]:
-        item_name = st.text_input(f"Item Name {idx+1}", value=item.get("item_name", ""), key=f"item_name_{idx}")
-
+        item_name = st.text_input(f"Item Name {idx+1}", value=item["item_name"], key=f"item_name_{idx}")
     with cols[2]:
-        description = st.text_input(f"Description {idx+1}", value=item.get("description", ""), key=f"description_{idx}")
-
+        description = st.text_input(f"Description {idx+1}", value=item["description"], key=f"description_{idx}")
     with cols[3]:
-        hsn_sac = st.text_input(f"HSN/SAC {idx+1}", value=item.get("hsn_sac", ""), key=f"hsn_{idx}")
-
+        hsn_sac = st.text_input(f"HSN/SAC {idx+1}", value=item["hsn_sac"], key=f"hsn_{idx}")
     with cols[4]:
-        qty = st.number_input(f"Qty {idx+1}", min_value=1, value=item.get("qty", 1), step=1, key=f"qty_{idx}")
-
+        qty = st.number_input(f"Qty {idx+1}", min_value=1, value=item["qty"], step=1, key=f"qty_{idx}")
     with cols[5]:
-        amount = st.number_input(f"Amount {idx+1}", min_value=0.0, value=item.get("amount", 0.0), step=100.0, key=f"amount_{idx}")
+        amount = st.number_input(f"Amount {idx+1}", min_value=0.0, value=item["amount"], step=100.0, key=f"amount_{idx}")
 
-    # Update item in session_state
     st.session_state["items"][idx] = {
         "item_name": item_name,
         "description": description,
@@ -65,141 +58,146 @@ for idx, item in enumerate(st.session_state["items"]):
 
 # ➡️ Generate PDF button
 if st.button("Generate Purchase Order PDF"):
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=10, leftMargin=10, topMargin=20, bottomMargin=20)
+    elements = []
+    styles = getSampleStyleSheet()
 
-    pdf = FPDF()
-    pdf.add_page()
-    pdf.set_font("Helvetica", size=20)
+    # ➡️ Add custom styles
+    styles.add(ParagraphStyle(name='POTitleRight', parent=styles['Title'], alignment=TA_RIGHT, fontSize=16))
+    styles.add(ParagraphStyle(name='PORight', parent=styles['Normal'], alignment=TA_RIGHT, fontSize=12))
 
-    # PURCHASE ORDER
-    pdf.text(x=120, y=15, txt="PURCHASE ORDER")
-    pdf.set_font("Helvetica", size=10)
-    pdf.text(x=120, y=22, txt=f"# PO id: {po_id}")
+    # ✅ Logo + PURCHASE ORDER right + PO ID below right
+    logo_path = "images.png"  # Ensure this path is correct in your project
+    im = Image(logo_path, width=50*mm, height=20*mm)
 
-    # Logo image
-    pdf.image("images.png", x=8, y=8, w=60)
+    title_data = [
+        [im, Paragraph("<b>PURCHASE ORDER</b>", styles["POTitleRight"])],
+        ["", Paragraph(f"PO ID: {po_id}", styles["PORight"])]
+    ]
 
-    # Finvasia address
-    pdf.set_font("Helvetica", "B", size=10)
-    pdf.text(x=8, y=30, txt="Finvasia Securities Private Limited")
-    pdf.set_font("Helvetica", size=10)
-    pdf.set_xy(7, 31)
-    finvasia_address = """Plot no. D-179, Phase -8 B, Focal point, Mohali SAS Nagar
-Mohali SAS Nagar Punjab 160055
-India
-GSTIN 03AABCF6759K1ZF
-01726750000
-gurpreet.singh@shoonya.com
+    title_table = Table(title_data, colWidths=[100*mm, 90*mm])
+    title_table.setStyle(TableStyle([
+        ('ALIGN', (0,0), (0,0), 'LEFT'),
+        ('ALIGN', (1,0), (1,0), 'RIGHT'),
+        ('ALIGN', (1,1), (1,1), 'RIGHT'),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 0),
+        ('TOPPADDING', (0,0), (-1,-1), 0),
+    ]))
+
+    elements.append(title_table)
+    elements.append(Spacer(1, 12))
+
+    # ✅ Finvasia and Vendor Address side by side
+    finvasia_address = """<b>Finvasia Securities Private Limited</b><br/>
+Plot no. D-179, Phase -8 B, Focal point, Mohali SAS Nagar<br/>
+Mohali SAS Nagar Punjab 160055<br/>
+India<br/>
+GSTIN 03AABCF6759K1ZF<br/>
+01726750000<br/>
+gurpreet.singh@shoonya.com<br/>
 """
-    pdf.multi_cell(w=100, h=5, txt=finvasia_address)
-    finvasia_end_y = pdf.get_y()
 
-   
-    
+    vendor_address = f"""<b>Vendor:</b><br/>
+{vendor_name}<br/>
+{vendor_line1}<br/>
+{vendor_line2}<br/>
+GSTIN {vendor_gstin}<br/>
+Contact: {vendor_contact}
+"""
 
+    address_data = [
+        [
+            Paragraph(finvasia_address, styles["Normal"]),
+            Paragraph(vendor_address, styles["Normal"])
+        ]
+    ]
 
-    # Vendor block
-    pdf.set_font("Helvetica", "B", size=10)
-    vendor_start_y = 30
-    pdf.text(x=120, y=vendor_start_y, txt="Vendor : ")
-    pdf.set_font("Helvetica", size=10)
-    pdf.set_xy(119, vendor_start_y + 1)
-    vendor_address = f"""{vendor_name}
-{vendor_line1}
-{vendor_line2}
-GSTIN {vendor_gstin}
-Contact: {vendor_contact}"""
-    pdf.multi_cell(w=80, h=5, txt=vendor_address)
+    address_table = Table(address_data, colWidths=[95*mm, 95*mm])
+    address_table.setStyle(TableStyle([
+        ('VALIGN',(0,0),(-1,-1),'TOP'),
+    ]))
 
-    # ➡️ Table header
-    headers = ["S.No", "Item", "Description", "HSN/SAC", "Qty", "Amount"]
-    start_x = 5
-    start_y = max(finvasia_end_y, pdf.get_y()) + 10
-    col_widths = [15, 20, 100, 25, 10, 30]
-    line_height = 5
+    elements.append(address_table)
+    elements.append(Spacer(1, 12))
 
-    pdf.set_fill_color(200, 200, 200)
-    pdf.set_xy(start_x, start_y)
-    for header, width in zip(headers, col_widths):
-        pdf.cell(width, 10, header, border=1, align='C', fill=True)
-    pdf.ln()
+    # ➡️ Table data preparation
+    table_style = ParagraphStyle(name='TableCell', fontSize=11, leading=16)
+    table_style_center = ParagraphStyle(name='TableCellCenter', fontSize=12, leading=16, alignment=TA_CENTER)
 
-    # ➡️ Table rows with wrapping
-    total_amount = 0
-    pdf.set_y(start_y + 10)
+    data = [
+        [
+            Paragraph("S.No", table_style_center),
+            Paragraph("Item", table_style_center),
+            Paragraph("Description", table_style_center),
+            Paragraph("HSN/SAC", table_style_center),
+            Paragraph("Qty", table_style_center),
+            Paragraph("Amount", table_style_center),
+            Paragraph("Amount with GST", table_style_center)
+        ]
+    ]
+
+    subtotal = 0
+    total_igst = 0
+    grand_total = 0
 
     for idx, item in enumerate(st.session_state["items"]):
+        amount = item["amount"]
+        igst = amount * 0.18
+        amount_with_gst = amount + igst
+
         row = [
-            str(idx + 1),
-            item["item_name"],
-            item["description"],
-            item["hsn_sac"],
-            str(item["qty"]),
-            str(item["amount"])
+            Paragraph(str(idx + 1), table_style_center),
+            Paragraph(item["item_name"], table_style),
+            Paragraph(item["description"], table_style),
+            Paragraph(item["hsn_sac"], table_style_center),
+            Paragraph(str(item["qty"]), table_style_center),
+            Paragraph(f"{amount:.2f}", table_style_center),
+            Paragraph(f"{amount_with_gst:.2f}", table_style_center)
         ]
 
-        x_positions = [start_x + sum(col_widths[:i]) for i in range(len(col_widths))]
-        y_start = pdf.get_y()
-        max_y = y_start
+        subtotal += amount
+        total_igst += igst
+        grand_total += amount_with_gst
 
-        for col_idx, val in enumerate(row):
-            x = x_positions[col_idx]
-            y = pdf.get_y()
-            pdf.set_xy(x, y)
-            pdf.multi_cell(col_widths[col_idx], line_height, val, border=0, align='C')
-            max_y = max(max_y, pdf.get_y())
-            pdf.set_xy(x + col_widths[col_idx], y)
+        data.append(row)
 
-        row_height = max_y - y_start
+    # ➡️ Calculation rows with proper spans
+    calc_style = ParagraphStyle(name='CalcStyle', fontSize=10, alignment=TA_RIGHT)
+    data.append([
+        '', '', '', '', '', Paragraph("Sub Total", calc_style), Paragraph(f"{subtotal:.2f}", table_style_center)
+    ])
+    data.append([
+        '', '', '', '', '', Paragraph("IGST 18%", calc_style), Paragraph(f"{total_igst:.2f}", table_style_center)
+    ])
+    data.append([
+        '', '', '', '', '', Paragraph("Total", calc_style), Paragraph(f"{grand_total:.2f}", table_style_center)
+    ])
 
-        if pdf.get_y() + row_height > 270:
-            pdf.add_page()
-            pdf.set_fill_color(200, 200, 200)
-            pdf.set_xy(start_x, pdf.get_y())
-            for header, width in zip(headers, col_widths):
-                pdf.cell(width, 10, header, border=1, align='C', fill=True)
-            pdf.ln()
-            y_start = pdf.get_y()
-            max_y = y_start
-
-        pdf.set_y(y_start)
-        for col_idx, val in enumerate(row):
-            x = x_positions[col_idx]
-            pdf.set_xy(x, y_start)
-            pdf.multi_cell(col_widths[col_idx], line_height, val, border=1, align='C')
-            pdf.set_xy(x + col_widths[col_idx], y_start)
-
-        pdf.set_y(max_y)
-        total_amount += float(item["amount"])
-
-    # ➡️ IGST and Total calculation (moved outside the loop)
-    igst = total_amount * 0.18
-    grand_total = total_amount + igst
-
-    pdf.set_x(start_x + sum(col_widths[:-2]))
-    pdf.cell(col_widths[-2], 10, "Sub Total:", border=0, align='R')
-    pdf.cell(col_widths[-1], 10, f"{total_amount:.2f}", border=1, align='C')
-    pdf.ln()
-
-    pdf.set_x(start_x + sum(col_widths[:-2]))
-    pdf.cell(col_widths[-2], 10, "IGST 18%:", border=0, align='R')
-    pdf.cell(col_widths[-1], 10, f"{igst:.2f}", border=1, align='C')
-    pdf.ln()
-
-    pdf.set_x(start_x + sum(col_widths[:-2]))
-    pdf.set_font("Helvetica", "B", size=10)
-    pdf.cell(col_widths[-2], 10, "Total:", border=0, align='R')
-    pdf.set_font("Helvetica", size=10)
-    pdf.cell(col_widths[-1], 10, f"{grand_total:.2f}", border=1, align='C')
-    pdf.ln(20)
+    # ➡️ Table styling and append
+    table = Table(data, colWidths=[15*mm, 30*mm, 60*mm, 25*mm, 15*mm, 25*mm, 30*mm])
+    table.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,0), colors.grey),
+        ('TEXTCOLOR',(0,0),(-1,0),colors.white),
+        ('ALIGN',(0,0),(-1,-1),'CENTER'),
+        ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
+        ('GRID', (0,0), (-1,-1), 0.5, colors.black),
+        ('VALIGN',(0,0),(-1,-1),'TOP'),
+        ('FONTNAME', (0,1), (-1,-1), 'Helvetica'),
+        ('FONTSIZE', (0,0), (-1,-1), 10),
+    ]))
+    elements.append(table)
 
 
-    # Output PDF as BytesIO
-    pdf_output = pdf.output(dest='S').encode('latin1') if isinstance(pdf.output(dest='S'), str) else pdf.output(dest='S')
-    pdf_bytes = BytesIO(pdf_output)
+
+    # ➡️ Build and output
+    doc.build(elements)
+    pdf_value = buffer.getvalue()
+    buffer.close()
 
     st.download_button(
         label="Download Purchase Order PDF",
-        data=pdf_bytes,
-        file_name="purchase_order.pdf",
+        data=pdf_value,
+        file_name="purchase_order_reportlab.pdf",
         mime="application/pdf"
     )

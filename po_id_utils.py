@@ -1,29 +1,61 @@
-import os
+# =========================
+# po_id.py
+# =========================
+
 from datetime import datetime
+from googleapiclient.http import MediaIoBaseDownload, MediaIoBaseUpload
+from io import BytesIO
 
-def generate_po_id(file_path="last_po_id.txt"):
-    current_year = datetime.now().year
+def read_last_po_id(service, folder_id):
+    """
+    Reads last_po_id.txt content from Google Drive.
+    Returns content string and file_id.
+    """
+    query = f"'{folder_id}' in parents and name='last_po_id.txt' and trashed=false"
+    results = service.files().list(q=query, spaces='drive', fields="files(id, name)").execute()
+    items = results.get('files', [])
 
-    # Always read the file when generating PO ID
-    if not os.path.exists(file_path):
-        last_number = 0
+    if items:
+        file_id = items[0]['id']
+        request = service.files().get_media(fileId=file_id)
+        fh = BytesIO()
+        downloader = MediaIoBaseDownload(fh, request)
+        done = False
+        while done is False:
+            status, done = downloader.next_chunk()
+        fh.seek(0)
+        content = fh.read().decode('utf-8').strip()
+        return content, file_id
     else:
-        with open(file_path, "r") as f:
-            last_po_id = f.read().strip()
-            if last_po_id:
-                last_year, last_number = last_po_id.split("-")
-                last_year = int(last_year)
-                last_number = int(last_number)
-                if last_year != current_year:
-                    last_number = 0
-            else:
-                last_number = 0
+        # Initialize if not exists
+        file_metadata = {
+            'name': 'last_po_id.txt',
+            'parents': [folder_id],
+            'mimeType': 'text/plain'
+        }
+        initial_value = "0"
+        media = MediaIoBaseUpload(BytesIO(initial_value.encode()), mimetype='text/plain')
+        file = service.files().create(body=file_metadata, media_body=media, fields='id').execute()
+        return initial_value, file['id']
 
-    new_number = last_number + 1
+def update_last_po_id(service, file_id, new_value):
+    """
+    Updates last_po_id.txt in Drive with new_value.
+    """
+    media = MediaIoBaseUpload(BytesIO(new_value.encode()), mimetype='text/plain')
+    service.files().update(fileId=file_id, media_body=media).execute()
 
-    # Update file with current year and new number
-    with open(file_path, "w") as f:
-        f.write(f"{current_year}-{new_number}")
+def generate_po_id(service, folder_id):
+    """
+    Generates new PO ID with current year, reads and updates Drive.
+    Format: YEAR-COUNT (e.g. 2025-001)
+    """
+    last_id_str, file_id = read_last_po_id(service, folder_id)
+    last_id = int(last_id_str)
+    new_id = last_id + 1
+    year = datetime.now().year
+    po_id = f"{year}-{new_id:03d}"
 
-    po_id = f"PO-{current_year}-{new_number:04d}"
+    # Update in Drive
+    update_last_po_id(service, file_id, str(new_id))
     return po_id

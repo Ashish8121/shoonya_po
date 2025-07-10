@@ -7,7 +7,7 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_CENTER, TA_RIGHT
 from io import BytesIO
 
-st.title("Purchase Order Generator (ReportLab)")
+st.title("Purchase Order Generator")
 
 # ➡️ Vendor input fields
 st.header("Vendor Address")

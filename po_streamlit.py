@@ -15,6 +15,14 @@ import random
 
 purchase_orders_root_id = "1FYquucEgSnFtWS0SkRKxSB_vXyaGdC1Z"
 
+from po_id import generate_po_id
+from gdrive import authenticate_gdrive
+
+service = authenticate_gdrive()
+folder_id = purchase_orders_root_id  # or your specific folder containing last_po_id.txt
+
+po_id = generate_po_id(service, folder_id)
+
 st.title("Purchase Order Generator (ReportLab)")
 
 # ➡️ Vendor input fields

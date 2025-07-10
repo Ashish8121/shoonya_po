@@ -7,7 +7,7 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_CENTER, TA_RIGHT
 from io import BytesIO
 
-st.title("Purchase Order Generator")
+st.title("Purchase Order Generator (ReportLab)")
 
 # ➡️ Vendor input fields
 st.header("Vendor Address")
@@ -142,7 +142,9 @@ Contact: {vendor_contact}
     grand_total = 0
 
     for idx, item in enumerate(st.session_state["items"]):
-        amount = item["amount"]
+        unit_price = item["amount"]
+        qty = item["qty"]
+        amount = unit_price * qty
         igst = amount * 0.18
         amount_with_gst = amount + igst
 

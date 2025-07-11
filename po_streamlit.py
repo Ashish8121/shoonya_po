@@ -16,7 +16,7 @@ from gdrive import upload_pdf_to_vendor_folder, authenticate_gdrive
 from po_id_utils import generate_po_id
 
 # ➡️ Define your Purchase Orders root folder ID in Drive
-purchase_orders_root_id = "1FYquucEgSnFtWS0SkRKxSB_vXyaGdC1Z"
+purchase_orders_root_id = "1-las_SuSF0R-aTOXgki0zWc0wZBfTnqb"
 
 # ➡️ Authenticate Google Drive
 service = authenticate_gdrive()

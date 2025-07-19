@@ -48,14 +48,16 @@ def update_last_po_id(service, file_id, new_value):
 def generate_po_id(service, folder_id):
     """
     Generates new PO ID with current year, reads and updates Drive.
-    Format: YEAR-COUNT (e.g. 2025-001)
+    Format: YEAR-COUNT (e.g. 2025-000)
     """
     last_id_str, file_id = read_last_po_id(service, folder_id)
     last_id = int(last_id_str)
-    new_id = last_id + 1
+    new_id = last_id  # do not increment here for current ID
+
     year = datetime.now().year
     po_id = f"{year}-{new_id:03d}"
 
-    # Update in Drive
-    update_last_po_id(service, file_id, str(new_id))
+    # Update Drive file for next time with incremented value
+    update_last_po_id(service, file_id, str(new_id + 1))
     return po_id
+

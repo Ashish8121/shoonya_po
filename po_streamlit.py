@@ -93,15 +93,16 @@ if st.button("Generate Purchase Order PDF"):
     # ➡️ Title and logo
  
 
+    
+
     title_data = [
-        [ Paragraph("<b>PURCHASE ORDER</b>", styles["POTitleRight"])],
-        ["", Paragraph(f"PO ID: {po_id}", styles["PORight"])]
+        [Paragraph("<b>PURCHASE ORDER</b>", styles["POTitleRight"])],
+        [Paragraph(f"PO ID: {po_id}", styles["PORight"])]
     ]
-    title_table = Table(title_data, colWidths=[100*mm, 90*mm])
+    title_table = Table(title_data, colWidths=[190*mm])  # adjust width if your page has wider/narrower content
+
     title_table.setStyle(TableStyle([
-        ('ALIGN', (0,0), (0,0), 'LEFT'),
-        ('ALIGN', (1,0), (1,0), 'RIGHT'),
-        ('ALIGN', (1,1), (1,1), 'RIGHT'),
+        ('ALIGN', (0,0), (-1,-1), 'RIGHT'),  # align all cells to right
         ('BOTTOMPADDING', (0,0), (-1,-1), 0),
         ('TOPPADDING', (0,0), (-1,-1), 0),
     ]))

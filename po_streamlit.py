@@ -94,7 +94,7 @@ if st.button("Generate Purchase Order PDF"):
  
 
     title_data = [
-        [im, Paragraph("<b>PURCHASE ORDER</b>", styles["POTitleRight"])],
+        [ Paragraph("<b>PURCHASE ORDER</b>", styles["POTitleRight"])],
         ["", Paragraph(f"PO ID: {po_id}", styles["PORight"])]
     ]
     title_table = Table(title_data, colWidths=[100*mm, 90*mm])

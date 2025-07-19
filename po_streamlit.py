@@ -91,8 +91,7 @@ if st.button("Generate Purchase Order PDF"):
     styles.add(ParagraphStyle(name='PORight', parent=styles['Normal'], alignment=TA_RIGHT, fontSize=12))
 
     # ➡️ Title and logo
-    logo_path = "images.png"  # Ensure image exists
-    im = Image(logo_path, width=50*mm, height=20*mm)
+ 
 
     title_data = [
         [im, Paragraph("<b>PURCHASE ORDER</b>", styles["POTitleRight"])],
